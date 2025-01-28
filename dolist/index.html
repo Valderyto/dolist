@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input, button, select {
+            margin-top: 5px;
+            padding: 5px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>Task Manager</h1>
+
+<!-- USERS -->
+<section>
+    <h2>Пользователи</h2>
+    <ul id="user-list"></ul>
+    <h3>Добавить пользователя</h3>
+    <form id="user-form">
+        <label>Имя: <input type="text" id="user-name" required></label>
+        <label>Email: <input type="email" id="user-email" required></label>
+        <button type="submit">Добавить пользователя</button>
+    </form>
+</section>
+
+<!-- TASKS -->
+<section>
+    <h2>Задачи</h2>
+    <ul id="task-list"></ul>
+    <h3>Добавить задачу</h3>
+    <form id="task-form">
+        <label>Название задачи: <input type="text" id="task-name" required></label>
+        <label>Назначить пользователю:
+            <select id="task-assignee"></select>
+        </label>
+        <button type="submit">Добавить задачу</button>
+    </form>
+</section>
+
+<!-- NOTIFICATIONS -->
+<section>
+    <h2>Уведомления</h2>
+    <ul id="notification-list"></ul>
+    <h3>Отправить уведомление</h3>
+    <form id="notification-form">
+        <label>Сообщение: <input type="text" id="notification-message" required></label>
+        <label>Пользователь:
+            <select id="notification-user"></select>
+        </label>
+        <button type="submit">Отправить уведомление</button>
+    </form>
+</section>
+
+<script>
+    const API_USERS = "http://localhost:8000/users";
+    const API_TASKS = "http://localhost:8001/tasks";
+    const API_NOTIFICATIONS = "http://localhost:8002/notifications";
+
+    // USERS
+    async function loadUsers() {
+        const response = await fetch(API_USERS);
+        const users = await response.json();
+        const userList = document.getElementById("user-list");
+        const taskAssignee = document.getElementById("task-assignee");
+        const notificationUser = document.getElementById("notification-user");
+
+        userList.innerHTML = "";
+        taskAssignee.innerHTML = "<option value=''>-- Выберите пользователя --</option>";
+        notificationUser.innerHTML = "<option value=''>-- Выберите пользователя --</option>";
+
+        users.forEach(user => {
+            const li = document.createElement("li");
+            li.textContent = `${user.name} (${user.email})`;
+            userList.appendChild(li);
+
+            const option = document.createElement("option");
+            option.value = user.id;
+            option.textContent = user.name;
+            taskAssignee.appendChild(option);
+            notificationUser.appendChild(option.cloneNode(true));
+        });
+    }
+
+    document.getElementById("user-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = document.getElementById("user-name").value;
+        const email = document.getElementById("user-email").value;
+
+        await fetch(API_USERS, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email })
+        });
+
+        document.getElementById("user-name").value = "";
+        document.getElementById("user-email").value = "";
+        loadUsers();
+    });
+
+    // TASKS
+    async function loadTasks() {
+        const response = await fetch(API_TASKS);
+        const tasks = await response.json();
+        const taskList = document.getElementById("task-list");
+
+        taskList.innerHTML = "";
+        tasks.forEach(task => {
+            const li = document.createElement("li");
+            li.textContent = `${task.name} - ${task.done ? "Выполнено" : "Не выполнено"} (Назначено: ${task.assignee?.name || "Никто"})`;
+            taskList.appendChild(li);
+        });
+    }
+
+    document.getElementById("task-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = document.getElementById("task-name").value;
+        const assigneeId = document.getElementById("task-assignee").value;
+
+        await fetch(API_TASKS, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, assignee: assigneeId ? { id: parseInt(assigneeId) } : null })
+        });
+
+        document.getElementById("task-name").value = "";
+        loadTasks();
+    });
+
+    // NOTIFICATIONS
+    async function loadNotifications() {
+        const response = await fetch(API_NOTIFICATIONS);
+        const notifications = await response.json();
+        const notificationList = document.getElementById("notification-list");
+
+        notificationList.innerHTML = "";
+        notifications.forEach(notification => {
+            const li = document.createElement("li");
+            li.textContent = `Для пользователя ID ${notification.user_id}: ${notification.message}`;
+            notificationList.appendChild(li);
+        });
+    }
+
+    document.getElementById("notification-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = document.getElementById("notification-message").value;
+        const userId = document.getElementById("notification-user").value;
+
+        await fetch(API_NOTIFICATIONS, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message, user_id: parseInt(userId) })
+        });
+
+        document.getElementById("notification-message").value = "";
+        loadNotifications();
+    });
+
+    // INITIAL LOAD
+    loadUsers();
+    loadTasks();
+    loadNotifications();
+</script>
+</body>
+</html>
+
